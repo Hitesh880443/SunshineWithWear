@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">SunshineWear</string>
+    <string name="my_analog_name">My Analog</string>
+    <string name="info_not_available">No Data</string>
+</resources>
