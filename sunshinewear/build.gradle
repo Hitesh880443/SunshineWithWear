@@ -22,6 +22,7 @@ android {
     }
     buildTypes {
         release {
+            debuggable true
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.myConfig
@@ -32,5 +33,5 @@ android {
 dependencies {
     compile fileTree(dir: 'libs', include: ['*.jar'])
     compile 'com.google.android.support:wearable:2.0.0-alpha2'
-    compile 'com.google.android.gms:play-services-wearable:9.4.0'
+    compile 'com.google.android.gms:play-services-wearable:8.4.0'
 }

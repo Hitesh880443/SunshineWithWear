@@ -57,6 +57,14 @@ public class MainActivity extends AppCompatActivity implements ForecastFragment.
         setSupportActionBar(toolbar);
         getSupportActionBar().setDisplayShowTitleEnabled(false);
 
+        try{
+            int v = getPackageManager().getPackageInfo("com.google.android.gms", 0 ).versionCode;
+            Log.d("version", String.valueOf(v));
+        }catch (Exception r)
+        {
+            r.printStackTrace();
+        }
+
         if (findViewById(R.id.weather_detail_container) != null) {
             // The detail container view will be present only in the large-screen layouts
             // (res/layout-sw600dp). If this view is present, then the activity should be

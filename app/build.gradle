@@ -24,6 +24,7 @@ android {
     }
     buildTypes {
         release {
+            debuggable true
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
             signingConfig signingConfigs.myConfig
@@ -37,7 +38,7 @@ android {
 
 ext {
     supportLibraryVersion = '23.0.1'
-    playServicesVersion = '9.4.0'
+    playServicesVersion = '9.0.0'
 
 }
 
@@ -52,10 +53,8 @@ dependencies {
     compile "com.android.support:recyclerview-v7:$supportLibraryVersion"
     compile "com.google.android.gms:play-services-gcm:$playServicesVersion"
     compile "com.google.android.gms:play-services-wearable:$playServicesVersion"
-    compile "com.google.android.gms:play-services-gcm:$playServicesVersion"
     compile "com.android.support:support-v4:$supportLibraryVersion"
     wearApp project(':sunshinewear')
     compile 'com.github.bumptech.glide:glide:3.5.2'
     compile 'com.google.android.apps.muzei:muzei-api:2.0'
-    compile 'com.google.android.gms:play-services-gcm:9.4.0'
 }

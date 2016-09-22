@@ -28,6 +28,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
 import android.graphics.Typeface;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -40,11 +41,17 @@ import android.view.WindowInsets;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
+import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.wearable.Asset;
+import com.google.android.gms.wearable.CapabilityInfo;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.DataMap;
 import com.google.android.gms.wearable.DataMapItem;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
+import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
 
 import java.io.InputStream;
@@ -53,6 +60,7 @@ import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Set;
 import java.util.TimeZone;
 import java.util.concurrent.TimeUnit;
 
@@ -237,6 +245,7 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                         @Override
                         public void onConnected(Bundle bundle) {
                             Log.e(TAG, "onConnected: Successfully connected to Google API client");
+                            getInitialWeatherData();
                             Wearable.DataApi.addListener(googleApiClient, dataListener);
                         }
 
@@ -253,6 +262,68 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                     })
                     .build();
             googleApiClient.connect();
+        }
+
+        /**
+         * When the watch face is used initially, access the data layer on the connected device and
+         * retrieve weather information
+         */
+        void getInitialWeatherData () {
+            Wearable.NodeApi.getConnectedNodes(googleApiClient).setResultCallback(new ResultCallback<NodeApi.GetConnectedNodesResult>() {
+                @Override
+                public void onResult(NodeApi.GetConnectedNodesResult nodes) {
+                    Log.i("WATCH", "getConnectedNodes result");
+                    Node connectedNode = null;
+                    for (Node node : nodes.getNodes()) {
+                        connectedNode = node;
+                    }
+                    if (connectedNode == null) {
+                        return;
+                    }
+
+                    Uri uri = new Uri.Builder()
+                            .scheme(PutDataRequest.WEAR_URI_SCHEME)
+                            .path(WEATHER_PATH)
+                            .authority(connectedNode.getId())
+                            .build();
+
+                    Wearable.DataApi.getDataItem(googleApiClient, uri)
+                            .setResultCallback(
+                                    new ResultCallback<DataApi.DataItemResult>() {
+                                        @Override
+                                        public void onResult(DataApi.DataItemResult dataItemResult) {
+                                            Log.i("WATCH", "getDataItem result");
+                                            if (dataItemResult.getStatus().isSuccess() && dataItemResult.getDataItem() != null) {
+                                                Log.i("WATCH", "Received data item result from connected node");
+                                                //DataMap dataMap = DataMapItem.fromDataItem(dataItemResult.getDataItem()).getDataMap();
+                                                try {
+                                                    DataMapItem dataMapItem = DataMapItem.fromDataItem(dataItemResult.getDataItem());
+                                                    weatherTempHigh = dataMapItem.getDataMap().getString(WEATHER_TEMP_HIGH_KEY);
+                                                    weatherTempLow = dataMapItem.getDataMap().getString(WEATHER_TEMP_LOW_KEY);
+                                                    Asset photo = dataMapItem.getDataMap().getAsset(WEATHER_TEMP_ICON_KEY);
+                                                    weatherTempIcon = loadBitmapFromAsset(googleApiClient, photo);
+                                                } catch (Exception e) {
+                                                    Log.e(TAG, "Exception   ", e);
+                                                    weatherTempIcon = null;
+                                                }
+                                            }
+                                        }
+                                    });
+                }
+
+                private Bitmap loadBitmapFromAsset(GoogleApiClient apiClient, Asset asset) {
+                    if (asset == null) {
+                        throw new IllegalArgumentException("Asset must be non-null");
+                    }
+                    InputStream assetInputStream = Wearable.DataApi.getFdForAsset(apiClient, asset).await().getInputStream();
+
+                    if (assetInputStream == null) {
+                        Log.w(TAG, "Requested an unknown Asset.");
+                        return null;
+                    }
+                    return BitmapFactory.decodeStream(assetInputStream);
+                }
+            });
         }
 
         @Override
@@ -369,7 +440,6 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
 
             int centerX = bounds.width() / 2;
             int centerY = bounds.height() / 2;
-
             long now = System.currentTimeMillis();
             mCalendar.setTimeInMillis(now);
             mDate.setTime(now);
@@ -388,13 +458,13 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                 canvas.drawLine(centerX - 20, centerY + spaceY, centerX + 20, centerY + spaceYTemp, linePaint);
                 if (weatherTempHigh != null && weatherTempLow != null) {
 
-                    text = weatherTempHigh;
+                    text = "High "+weatherTempHigh+" Low "+weatherTempLow;
                     textPaintTempBold.getTextBounds(text, 0, text.length(), textBounds);
                     spaceYTemp = textBounds.height() + spaceY + spaceYTemp;
-                    canvas.drawText(text, centerX - textBounds.width() / 2, centerY + spaceYTemp, textPaintTempBold);
+                    canvas.drawText(text, centerX - textBounds.width()/2, centerY + spaceYTemp, textPaintTempBold);
 
-                    text = weatherTempLow;
-                    canvas.drawText(text, centerX + textBounds.width() / 2 + spaceX, centerY + spaceYTemp, textPaintTemp);
+                   /* text =
+                    canvas.drawText(text, centerX + textBounds.width()  + spaceX, centerY + spaceYTemp, textPaintTemp)*/;
 
                     if (weatherTempIcon != null) {
                         // draw weather icon
@@ -445,5 +515,33 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                 mUpdateTimeHandler.sendEmptyMessageDelayed(MSG_UPDATE_TIME, delayMs);
             }
         }
+
+
+        private String transcriptionNodeId = null;
+
+        private void updateTranscriptionCapability(CapabilityInfo capabilityInfo) {
+            Set<Node> connectedNodes = capabilityInfo.getNodes();
+
+            transcriptionNodeId = pickBestNodeId(connectedNodes);
+        }
+
+        private String pickBestNodeId(Set<Node> nodes) {
+            String bestNodeId = null;
+            // Find a nearby node or pick one arbitrarily
+            for (Node node : nodes) {
+                if (node.isNearby()) {
+                    return node.getId();
+                }
+                bestNodeId = node.getId();
+            }
+            return bestNodeId;
+        }
     }
+
+
+
+
+
+
+
 }
