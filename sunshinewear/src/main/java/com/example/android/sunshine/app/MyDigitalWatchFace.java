@@ -72,10 +72,10 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
     private static final Typeface NORMAL_TYPEFACE =
             Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
     /**
-     private static final Typeface NORMAL_TYPEFACE =
-     Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
-
-     /**
+     * private static final Typeface NORMAL_TYPEFACE =
+     * Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL);
+     * <p/>
+     * /**
      * Update rate in milliseconds for interactive mode. We update once a second since seconds are
      * displayed in interactive mode.
      */
@@ -167,8 +167,15 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                                 DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
                                 weatherTempHigh = dataMapItem.getDataMap().getString(WEATHER_TEMP_HIGH_KEY);
                                 weatherTempLow = dataMapItem.getDataMap().getString(WEATHER_TEMP_LOW_KEY);
-                                Asset photo = dataMapItem.getDataMap().getAsset(WEATHER_TEMP_ICON_KEY);
-                                weatherTempIcon = loadBitmapFromAsset(googleApiClient, photo);
+                                final Asset photo = dataMapItem.getDataMap().getAsset(WEATHER_TEMP_ICON_KEY);
+//                                weatherTempIcon = loadBitmapFromAsset(googleApiClient, photo);
+                                new Thread(new Runnable() {
+                                    @Override
+                                    public void run() {
+                                        weatherTempIcon = loadBitmapFromAsset(googleApiClient, photo);
+                                        Log.d("WEATHER-ICON",""+weatherTempIcon.getWidth());
+                                    }
+                                }).start();
                             } catch (Exception e) {
                                 Log.e(TAG, "Exception   ", e);
                                 weatherTempIcon = null;
@@ -185,7 +192,7 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                 }
             }
 
-            private Bitmap loadBitmapFromAsset(GoogleApiClient apiClient, Asset asset) {
+        /*    private Bitmap loadBitmapFromAsset(GoogleApiClient apiClient, Asset asset) {
                 if (asset == null) {
                     throw new IllegalArgumentException("Asset must be non-null");
                 }
@@ -196,7 +203,33 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                     return null;
                 }
                 return BitmapFactory.decodeStream(assetInputStream);
+            }*/
+
+            private Bitmap loadBitmapFromAsset(GoogleApiClient apiClient, Asset asset) {
+                if (asset == null) {
+                    throw new IllegalArgumentException("Asset must be non-null");
+                }
+
+            /*InputStream assetInputStream = Wearable.DataApi.getFdForAsset(
+                    apiClient, asset).await().getInputStream();
+*/
+                final InputStream[] assetInputStream = new InputStream[1];
+
+                Wearable.DataApi.getFdForAsset(apiClient, asset).setResultCallback(new ResultCallback<DataApi.GetFdForAssetResult>() {
+                    @Override
+                    public void onResult(DataApi.GetFdForAssetResult getFdForAssetResult) {
+                        assetInputStream[0] = getFdForAssetResult.getInputStream();
+                    }
+                });
+
+
+                if (assetInputStream[0] == null) {
+                    Log.w(TAG, "Requested an unknown Asset.");
+                    return null;
+                }
+                return BitmapFactory.decodeStream(assetInputStream[0]);
             }
+
         };
 
         @Override
@@ -268,7 +301,7 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
          * When the watch face is used initially, access the data layer on the connected device and
          * retrieve weather information
          */
-        void getInitialWeatherData () {
+        void getInitialWeatherData() {
             Wearable.NodeApi.getConnectedNodes(googleApiClient).setResultCallback(new ResultCallback<NodeApi.GetConnectedNodesResult>() {
                 @Override
                 public void onResult(NodeApi.GetConnectedNodesResult nodes) {
@@ -300,8 +333,16 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                                                     DataMapItem dataMapItem = DataMapItem.fromDataItem(dataItemResult.getDataItem());
                                                     weatherTempHigh = dataMapItem.getDataMap().getString(WEATHER_TEMP_HIGH_KEY);
                                                     weatherTempLow = dataMapItem.getDataMap().getString(WEATHER_TEMP_LOW_KEY);
-                                                    Asset photo = dataMapItem.getDataMap().getAsset(WEATHER_TEMP_ICON_KEY);
-                                                    weatherTempIcon = loadBitmapFromAsset(googleApiClient, photo);
+                                                    final Asset photo = dataMapItem.getDataMap().getAsset(WEATHER_TEMP_ICON_KEY);
+//                                                    weatherTempIcon = loadBitmapFromAsset(googleApiClient, photo);
+                                                    new Thread(new Runnable() {
+                                                        @Override
+                                                        public void run() {
+                                                            weatherTempIcon = loadBitmapFromAsset(googleApiClient, photo);
+                                                            Log.d("WEATHER-ICON",""+weatherTempIcon.getWidth());
+                                                        }
+                                                    }).start();
+
                                                 } catch (Exception e) {
                                                     Log.e(TAG, "Exception   ", e);
                                                     weatherTempIcon = null;
@@ -458,19 +499,26 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
                 canvas.drawLine(centerX - 20, centerY + spaceY, centerX + 20, centerY + spaceYTemp, linePaint);
                 if (weatherTempHigh != null && weatherTempLow != null) {
 
-                    text = "High "+weatherTempHigh+" Low "+weatherTempLow;
+                    text = weatherTempHigh;
                     textPaintTempBold.getTextBounds(text, 0, text.length(), textBounds);
                     spaceYTemp = textBounds.height() + spaceY + spaceYTemp;
-                    canvas.drawText(text, centerX - textBounds.width()/2, centerY + spaceYTemp, textPaintTempBold);
+                    canvas.drawText(text, centerX - textBounds.width() / 2, centerY + spaceYTemp, textPaintTempBold);
 
-                   /* text =
-                    canvas.drawText(text, centerX + textBounds.width()  + spaceX, centerY + spaceYTemp, textPaintTemp)*/;
+                    text = weatherTempLow;
+                    canvas.drawText(text, centerX + textBounds.width() / 2 + spaceX, centerY + spaceYTemp, textPaintTemp);
 
                     if (weatherTempIcon != null) {
                         // draw weather icon
                         canvas.drawBitmap(weatherTempIcon,
                                 centerX - textBounds.width() / 2 - spaceX - weatherTempIcon.getWidth(),
                                 centerY + spaceYTemp - weatherTempIcon.getHeight() / 2 - textBounds.height() / 2, null);
+/*
+                        canvas.drawBitmap(weatherTempIcon,
+                                centerX - weatherTempIcon.getWidth() / 2,
+                                centerY - weatherTempIcon.getHeight() / 2, null);*/
+                        Log.d("weatherTempIcon", "got it");
+                    } else {
+                        Log.d("weatherTempIcon", "null");
                     }
                 } else {
                     // draw temperature high
@@ -537,11 +585,6 @@ public class MyDigitalWatchFace extends CanvasWatchFaceService {
             return bestNodeId;
         }
     }
-
-
-
-
-
 
 
 }
